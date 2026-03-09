@@ -2,7 +2,7 @@ var express = require('express');
 var router = express.Router();
 let productModel = require('../schemas/products')
 let { ConvertTitleToSlug } = require('../utils/titleHandler')
-let { getMaxID } = require('../utils/IdHandler')
+let { checkLogin, checkRole } = require('../utils/authHandler')
 
 //getall
 router.get('/', async function (req, res, next) {
@@ -43,7 +43,7 @@ router.get('/:id', async function (req, res, next) {
 });
 
 
-router.post('/', async function (req, res, next) {
+router.post('/', checkLogin, checkRole('ADMIN', 'MOD'), async function (req, res, next) {
   let newItem = new productModel({
     title: req.body.title,
     slug: ConvertTitleToSlug(req.body.title),
@@ -70,27 +70,54 @@ router.post('/', async function (req, res, next) {
   // //console.log(g);
 
 })
-router.put('/:id', async function (req, res, next) {
-  let id = req.params.id;
-  let updatedItem = await productModel.findByIdAndUpdate(
-    id, req.body, {
-    new: true
+router.put('/:id', checkLogin, checkRole('ADMIN', 'MOD'), async function (req, res, next) {
+  try {
+    let id = req.params.id;
+    let updatedItem = await productModel.findByIdAndUpdate(
+      id,
+      req.body,
+      {
+        new: true
+      }
+    )
+    if (!updatedItem) {
+      res.status(404).send({
+        message: 'id not found'
+      })
+      return;
+    }
+    res.send(updatedItem)
+  } catch (error) {
+    res.status(400).send({
+      message: error.message
+    })
   }
-  )
-  res.send(updatedItem)
-
 })
-router.delete('/:id', async function (req, res, next) {
-  let id = req.params.id;
-  let updatedItem = await productModel.findByIdAndUpdate(
-    id, {
-    isDeleted: true
-  }, {
-    new: true
-  }
-  )
-  res.send(updatedItem)
 
+router.delete('/:id', checkLogin, checkRole('ADMIN'), async function (req, res, next) {
+  try {
+    let id = req.params.id;
+    let updatedItem = await productModel.findByIdAndUpdate(
+      id,
+      {
+        isDeleted: true
+      },
+      {
+        new: true
+      }
+    )
+    if (!updatedItem) {
+      res.status(404).send({
+        message: 'id not found'
+      })
+      return;
+    }
+    res.send(updatedItem)
+  } catch (error) {
+    res.status(400).send({
+      message: error.message
+    })
+  }
 })
 
 module.exports = router;
